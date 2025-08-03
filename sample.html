@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>쿠팡으로 이동 중...</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: white;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #4285f4;
+        }
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fallback-btn {
+            display: none;
+            background: white;
+            color: #4285f4;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .status {
+            margin-top: 15px;
+            font-size: 14px;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">쿠팡</div>
+        <h2>쿠팡 앱으로 이동 중...</h2>
+        <div class="spinner"></div>
+        <p>잠시만 기다려주세요</p>
+        <p class="status" id="status">앱 실행을 시도하고 있습니다...</p>
+        <a href="https://www.coupang.com/vp/products/8335434837?itemId=24068312487&vendorItemId=91088074265&pickType=COU_PICK&q=%EC%95%84%EC%9D%B4%ED%8F%B0&searchId=2a2923e37870479&sourceType=search&itemsCount=35&searchRank=0&rank=0" 
+           class="fallback-btn" id="fallbackBtn">웹에서 보기</a>
+    </div>
+
+    <script>
+        class DeepLinkHandler {
+            constructor() {
+                this.customScheme = 'coupang://goods/8335434837?itemId=24068312487&vendorItemId=91088074265&pickType=COU_PICK&q=%EC%95%84%EC%9D%B4%ED%8F%B0&searchId=2a2923e37870479&sourceType=search&itemsCount=35&searchRank=0&rank=0';
+                this.universalLink = 'https://www.coupang.com/vp/products/8335434837?itemId=24068312487&vendorItemId=91088074265&pickType=COU_PICK&q=%EC%95%84%EC%9D%B4%ED%8F%B0&searchId=2a2923e37870479&sourceType=search&itemsCount=35&searchRank=0&rank=0';
+                this.fallbackDelay = 3000; // 3초 후 폴백
+                this.statusElement = document.getElementById('status');
+                this.fallbackBtn = document.getElementById('fallbackBtn');
+                
+                this.init();
+            }
+
+            init() {
+                // 페이지 로드 즉시 딥링크 시도
+                this.attemptDeepLink();
+                
+                // 폴백 타이머 설정
+                this.setupFallback();
+                
+                // 브라우저 포커스 이벤트 리스너 (앱 전환 감지용)
+                this.setupVisibilityHandlers();
+            }
+
+            attemptDeepLink() {
+                const userAgent = navigator.userAgent;
+                const isIOS = /iPad|iPhone|iPod/.test(userAgent);
+                const isAndroid = /Android/.test(userAgent);
+
+                if (isIOS) {
+                    this.tryIOSDeepLink();
+                } else if (isAndroid) {
+                    this.tryAndroidDeepLink();
+                } else {
+                    this.showFallback('지원되지 않는 플랫폼입니다.');
+                }
+            }
+
+            tryIOSDeepLink() {
+                this.updateStatus('iOS 앱 실행 중...');
+                
+                // iOS에서는 Universal Link 우선 시도
+                const startTime = Date.now();
+                
+                // Universal Link 시도
+                window.location.href = this.universalLink;
+                
+                // 잠시 후 Custom Scheme도 시도 (폴백용)
+                setTimeout(() => {
+                    if (Date.now() - startTime < 2000) {
+                        try {
+                            window.location.href = this.customScheme;
+                        } catch (e) {
+                            console.log('Custom scheme failed:', e);
+                        }
+                    }
+                }, 500);
+            }
+
+            tryAndroidDeepLink() {
+                this.updateStatus('Android 앱 실행 중...');
+                
+                try {
+                    // Android에서는 Intent URL 생성
+                    const intentUrl = `intent://goods/8335434837?itemId=24068312487&vendorItemId=91088074265&pickType=COU_PICK&q=%EC%95%84%EC%9D%B4%ED%8F%B0&searchId=2a2923e37870479&sourceType=search&itemsCount=35&searchRank=0&rank=0#Intent;scheme=coupang;package=com.coupang.mobile;S.browser_fallback_url=${encodeURIComponent(this.universalLink)};end`;
+                    
+                    window.location.href = intentUrl;
+                } catch (e) {
+                    console.log('Intent URL failed, trying custom scheme:', e);
+                    window.location.href = this.customScheme;
+                }
+            }
+
+            setupFallback() {
+                this.fallbackTimer = setTimeout(() => {
+                    this.showFallback('앱을 찾을 수 없습니다.');
+                }, this.fallbackDelay);
+            }
+
+            setupVisibilityHandlers() {
+                // 페이지가 숨겨졌다가 다시 보이면 앱 전환 실패로 간주
+                let hidden = false;
+                
+                const handleVisibilityChange = () => {
+                    if (document.hidden) {
+                        hidden = true;
+                        clearTimeout(this.fallbackTimer);
+                    } else if (hidden) {
+                        // 페이지가 다시 보이면 앱 전환이 실패한 것으로 간주
+                        this.showFallback('앱 실행에 실패했습니다.');
+                    }
+                };
+
+                document.addEventListener('visibilitychange', handleVisibilityChange);
+                
+                // 브라우저 포커스 이벤트도 처리
+                window.addEventListener('blur', () => {
+                    clearTimeout(this.fallbackTimer);
+                });
+                
+                window.addEventListener('focus', () => {
+                    if (hidden) {
+                        this.showFallback('앱 실행에 실패했습니다.');
+                    }
+                });
+            }
+
+            updateStatus(message) {
+                this.statusElement.textContent = message;
+            }
+
+            showFallback(message) {
+                clearTimeout(this.fallbackTimer);
+                this.updateStatus(message);
+                this.fallbackBtn.style.display = 'inline-block';
+                
+                // 자동으로 웹페이지로 리다이렉션
+                setTimeout(() => {
+                    window.location.href = this.universalLink;
+                }, 2000);
+            }
+        }
+
+        // 페이지 로드 시 딥링크 핸들러 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            new DeepLinkHandler();
+        });
+
+        // 즉시 실행도 추가 (DOMContentLoaded가 이미 발생한 경우 대비)
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                new DeepLinkHandler();
+            });
+        } else {
+            new DeepLinkHandler();
+        }
+    </script>
+</body>
+</html>
